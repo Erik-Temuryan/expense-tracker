@@ -1,18 +1,36 @@
 import sqlite3
 from datetime import date
 
+# Add a new expense to the database
 def add_expense(connect):
-    title = input("Enter expense title: ")
+    while True:
+        title = input("Enter expense title: ").strip()
+        
+        if title:
+            break
+        
+        print("Title can't be empty.")
+    
     while True:
         try:
             amount = float(input("Enter amount: "))
-            while amount < 0:
+            
+            if amount < 0:
                 print("Amount can't be negative.")
-                amount = float(input("Enter amount: "))
+                continue
+            
             break
         except ValueError:
             print("Please enter a Valid number!")
-    category = input("Enter category: ")
+            
+    while True:
+        category = input("Enter category: ").strip().capitalize()
+
+        if category:
+            break
+
+        print("Category can't be empty.")
+        
     today = str(date.today())
 
     cursor = connect.cursor()
@@ -26,6 +44,7 @@ def add_expense(connect):
 
     print("Expense added!")
     
+# Show all saved expenses
 def show_expenses(connect):
     cursor = connect.cursor()
     
@@ -39,7 +58,8 @@ def show_expenses(connect):
         for i in expenses:
             print(number, "| ID:", i[0], "|", " | ".join(map(str, i[1:])))
             number += 1
-            
+
+# Delete an expense by ID
 def delete_expense(connect):
     while True:
         try:
@@ -59,33 +79,44 @@ def delete_expense(connect):
         print("Expense not found!")
         
     connect.commit()
-    
+
+# Count total per category
 def total_per_category(connect):
-    category = input("Enter the category or enter 'All expenses' to see sum of all expenses: ")
-    
     cursor = connect.cursor()
     
-    category = category.upper()
-    if category == "ALL EXPENSES":
-        cursor.execute("""SELECT SUM(amount)
-                           FROM expenses""")
-    else:
-        cursor.execute("""SELECT category, SUM(amount)
-                        FROM expenses
-                        WHERE UPPER(category) = ?
-                        GROUP BY category""", (category,))
+    cursor.execute("""SELECT category, SUM(amount)
+                FROM expenses
+                GROUP BY category""")
     
     totals = cursor.fetchall()
     
     if not totals:
-        print("No expenses found in this category!")
-    elif category == "ALL EXPENSES":
-        for i in totals:
-            print("Amount of all expenses is " + "".join(map(str, i)))
+        print("No expenses yet.")
     else:
         for i in totals:
             print(" - ".join(map(str, i)))
-            
+
+# Count total for one category
+def total_for_one_category(connect):
+    category = input("Enter the category name: ").strip()
+    
+    cursor = connect.cursor()
+    
+    category = category.upper()
+    cursor.execute("""SELECT category, SUM(amount)
+                   FROM expenses
+                   WHERE UPPER(category) = ?
+                   GROUP BY category""", (category,))
+    
+    totals = cursor.fetchall()
+    
+    if not totals:
+        print("No expenses yet.")
+    else:
+        for i in totals:
+            print(" - ".join(map(str, i)))
+        
+# Update expense by ID
 def update_expense(connect):
     while True:
             try:
@@ -96,9 +127,11 @@ def update_expense(connect):
     while True:
         try:
             new_amount = float(input("Enter the new amount: "))
-            while new_amount < 0:
+            
+            if new_amount < 0:
                 print("Amount can't be negative.")
-                new_amount = float(input("Enter the new amount: "))
+                continue
+            
             break
         except ValueError:
             print("Please enter a Valid number!")
@@ -116,22 +149,21 @@ def update_expense(connect):
         print("Expense not found!")
         
     connect.commit()
-            
+
+
+# Program menu
 def menu(connect):
     while True:
         print("""\n ===== EXPENSE TRACKER =====
-
     1. Add expense
     2. Show all expenses
     3. Delete expense
     4. Update expense
     5. Total per category
-    6. Exit
+    6. Total for one category
+    7. Exit
                 """)
-
         choose = input("Choose an option NUMBER: ")
-
-
         if choose == "1":
             add_expense(connect)
         elif choose == "2":
@@ -143,14 +175,18 @@ def menu(connect):
         elif choose == "5":
             total_per_category(connect)
         elif choose == "6":
+            total_for_one_category(connect)
+        elif choose == "7":
             break
         else:
             print("Wrong answer!")
             
-connect = sqlite3.connect("expenses.db")
-cursor = connect.cursor()
+def main():
+    connect = sqlite3.connect("expenses.db")
 
-cursor.execute("""
+    cursor = connect.cursor()
+
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
@@ -158,10 +194,14 @@ cursor.execute("""
         category TEXT,
         date TEXT
     )
-""")
+    """)
 
-connect.commit()
+    connect.commit()
 
-menu(connect)
+    menu(connect)
+
+    connect.close()
     
-connect.close()
+    
+if __name__ == "__main__":
+    main()
